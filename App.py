@@ -1,4 +1,5 @@
 from ctypes import alignment
+from fileinput import close
 from tkinter import CENTER
 from turtle import width
 import streamlit as st
@@ -7,9 +8,48 @@ import pandas as pd
 from datetime import date, datetime
 import plotly.express as px
 
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.api import VAR
+
 from fbprophet import Prophet
 
+import statsmodels.api as sms
+
 import math
+
+from statsmodels.tsa.stattools import adfuller
+
+def calc_mae(y,y_hat):
+    mae = np.abs(y-y_hat)
+    return mae.mean()
+
+def calc_mse(y,y_hat):
+    mse = (y-y_hat)**2
+    return mse.mean()
+
+def calc_rmse(y,y_hat):
+    mse = (y-y_hat)**2
+    rmse = np.sqrt(mse.mean())
+    return rmse
+
+def integrate(apple_orig, apple_diff):
+    return (apple_orig.shift()+apple_diff)
+
+def dickey_fuller_test(series):
+    result = adfuller(series)
+    
+    Statistics = result[0]
+    p_Value = result[1]
+    
+    print("Dickey Fuller Test Statistics are:", Statistics)
+    print("P - Value is:", p_Value)
+    
+    if result[1] <= 0.5:
+        print("Strong Evidence against the null hypothesis, reject the null hypothesis, Data is stationary")
+        return False
+    else:
+        print("Weak Evidence against the null hypothesis, accepting the null hypothesis, hence data is non-stationary")
+        return True
 
 with st.sidebar:
     option = st.selectbox(
@@ -48,16 +88,9 @@ with st.sidebar:
 
     LSTM_Model = LSTM.checkbox("LSTM")
 
-    if LSTM_Model :
-        st.write("LSTM Model")
-    
-    
-
     Prophet_M, VAR_M = st.columns(2)
 
     Prophet_Model = Prophet_M.checkbox("Facebook Prophet")
-
-
 
     VAR_Model = VAR_M.checkbox("Vector AutoRegressor (VAR)")
 
@@ -67,6 +100,7 @@ with st.sidebar:
 
 
 if Prophet_Model:
+    st.markdown(body='# Facebook Prophet Model')
     str1 = 'C:\\Users\\91990\OneDrive\\Desktop\\PG Diploma AI ML Project Final\\Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
 
     str2 = option.split('(')[1].split(')')[0] + '_data.csv'
@@ -102,4 +136,101 @@ if Prophet_Model:
     #st.dataframe(prophet_df)
 
     line_chart = st.line_chart(prophet_df)
+
+    mae_test, mae = st.columns(2)
+    mae_test.text('Mean Absolute Error is:')
+    mae.write(calc_mae(stock.close[-len(stock_test):], forecasted_data.yhat[-len(stock_test):]))
+
+    mse_test, mse = st.columns(2)
+    mse_test.text('Mean Square Error is:')
+    mse.write(calc_mse(stock.close[-len(stock_test):], forecasted_data.yhat[-len(stock_test):]))
+
+    rmse_test, rmse = st.columns(2)
+    rmse_test.text('Root Mean Absolute Error is:')
+    rmse.write(calc_rmse(stock.close[-len(stock_test):], forecasted_data.yhat[-len(stock_test):]))
+
+
+
+
+if VAR_Model:
+
+    st.markdown(body='# Vector Autogressor Model VAR')
+    str1 = 'C:\\Users\\91990\OneDrive\\Desktop\\PG Diploma AI ML Project Final\\Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
+
+    str2 = option.split('(')[1].split(')')[0] + '_data.csv'
+
+    st.warning(str1+str2)
+
+    df_stock = pd.read_csv(str1+str2)
+
+    stock = df_stock.copy() 
+
+    data_is_non_stationary = True
+
+    differenced_stock_open = stock.open
+    differenced_stock_close = stock.close
+    differenced_stock_low = stock.low
+    differenced_stock_high = stock.high
+    differenced_stock_vol = stock.volume
+
+    order_of_differencing = 0
+    while(data_is_non_stationary):
+
+        stock_open = dickey_fuller_test(differenced_stock_open)
+        stock_close = dickey_fuller_test(differenced_stock_close)
+        stock_low = dickey_fuller_test(differenced_stock_low)
+        stock_high = dickey_fuller_test(differenced_stock_high)
+        stock_vol = dickey_fuller_test(differenced_stock_vol)
+        data_is_non_stationary = stock_open or stock_close or stock_high or stock_low or stock_vol
+
+        if data_is_non_stationary :
+            order_of_differencing = order_of_differencing + 1
+            differenced_stock_open = stock.open.diff().dropna()
+            differenced_stock_close = stock.close.diff().dropna()
+            differenced_stock_low = stock.high.diff().dropna()
+            differenced_stock_high = stock.low.diff().dropna()
+            differenced_stock_vol = stock.volume.diff().dropna()
     
+    var_stock = pd.concat([differenced_stock_open, differenced_stock_close, differenced_stock_low, differenced_stock_high], axis=1)
+        
+    stock_train = var_stock[:math.ceil(.85*len(var_stock))]
+    stock_test = var_stock[math.ceil(.85*len(var_stock)):]
+
+    var_model_instance = VAR(stock_train)
+
+    order_for_var = var_model_instance.select_order(40).bic
+
+    var_result = var_model_instance.fit(order_for_var)
+
+    var_result.summary()
+
+    lag = var_result.k_ar
+
+    result_forecast = var_result.forecast(stock_test.values[-lag:], steps=len(stock_test))
+
+    var_output = pd.concat([pd.DataFrame(stock_train.close.values), pd.DataFrame((result_forecast[:,0]))])
+
+    actual_output = integrate(pd.DataFrame(stock.close.values),var_output).dropna()
+
+    actual_output = actual_output.reset_index(drop=True)
+    actual_pred = actual_output.reset_index(drop=True)[-len(stock_test):]
+
+    var_df = pd.DataFrame(stock.close)
+    var_df['yhat'] = actual_pred
+
+    st.line_chart(var_df)
+    
+    mae_test, mae = st.columns(2)
+    mae_test.text('Mean Absolute Error is:')
+    mae.write(calc_mae(stock.close[-len(actual_pred):].values, actual_pred.values))
+
+    mse_test, mse = st.columns(2)
+    mse_test.text('Mean Square Error is:')
+    mse.write(calc_mse(stock.close[-len(actual_pred):].values, actual_pred.values))
+
+    rmse_test, rmse = st.columns(2)
+    rmse_test.text('Root Mean Absolute Error is:')
+    rmse.write(calc_rmse(stock.close[-len(actual_pred):].values, actual_pred.values))
+    
+if LSTM_Model :
+        st.markdown(body="# LSTM Model")
