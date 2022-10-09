@@ -33,7 +33,7 @@ cffi==1.15.1
 chardet==3.0.4
 charset-normalizer==2.1.1
 click==7.1.2
-clyent==1.2.2
+clyent==1.2.1
 cmdstanpy==0.4.0
 colorama==0.4.4
 commonmark==0.9.1
