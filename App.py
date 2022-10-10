@@ -319,7 +319,7 @@ if Prophet_Model:
 
     stock_prophet = stock_train.reset_index()[['date','close']].rename({'date':'ds','close':'y'},axis='columns')
 
-    prophet_model_instance = Prophet(interval_width=.95) #By Default confidence interval_width is 80,
+    prophet_model_instance = Prophet() #By Default confidence interval_width is 80, interval_width=.95
 
     prophet_model_instance.fit(stock_prophet)
 
