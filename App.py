@@ -304,7 +304,7 @@ if ARIMA_Model :
 
 if Prophet_Model:
 
-    st.markdown(body="## Facebook Prophet :")
+    st.markdown(body="## AutoRegression Integrated Moving Average Model :")
 
     str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
 
@@ -321,8 +321,7 @@ if Prophet_Model:
 
     prophet_model_instance = Prophet() #By Default confidence interval_width is 80, interval_width=.95
 
-    with stdout_suppressor.suppress_stdout_stderr():
-        prophet_model_instance.fit(stock_prophet)
+    prophet_model_instance.fit(stock_prophet)
 
     future_dataframe = prophet_model_instance.make_future_dataframe(periods=len(stock_test))
 
