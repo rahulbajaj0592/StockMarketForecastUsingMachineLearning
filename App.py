@@ -96,7 +96,7 @@ with st.sidebar:
 if VAR_Model:
 
     st.markdown(body='# Vector Autogressor Model VAR')
-    str1 = 'C:\\Users\\91990\OneDrive\\Desktop\\PG Diploma AI ML Project Final\\Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
+    str1 = 'Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
 
     str2 = option.split('(')[1].split(')')[0] + '_data.csv'
 
@@ -188,7 +188,7 @@ if VAR_Model:
 if LSTM_Model :
         st.markdown(body="# Long Short Term Memory Model:")
 
-        str1 = 'C:\\Users\\91990\OneDrive\\Desktop\\PG Diploma AI ML Project Final\\Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
+        str1 = 'Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
 
         str2 = option.split('(')[1].split(')')[0] + '_data.csv'
 
@@ -256,7 +256,7 @@ if LSTM_Model :
 if ARIMA_Model :
     st.markdown(body="## AutoRegression Integrated Moving Average Model :")
 
-    str1 = 'C:\\Users\\91990\OneDrive\\Desktop\\PG Diploma AI ML Project Final\\Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
+    str1 = 'Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
 
     str2 = option.split('(')[1].split(')')[0] + '_data.csv'
 
