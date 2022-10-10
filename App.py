@@ -13,6 +13,8 @@ from tensorflow.keras import layers
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.api import VAR
 
+from prophet import Prophet
+
 def calc_mae(y,y_hat):
     mae = np.abs(y-y_hat)
     return mae.mean()
@@ -90,7 +92,7 @@ with st.sidebar:
 
     Fifth_Model, GluonTs_Model, Sixth_Model = st.columns(3)
 
-    GluonTs_Model.checkbox("Amazon GluonTs")
+    GluonTs_Model.checkbox("Amazon GluonTs", disabled = True)
 
 
 if VAR_Model:
@@ -276,15 +278,15 @@ if ARIMA_Model :
 
     ARIMA_prediction_df = pd.DataFrame(prediction_Arima[0])
 
+    st.write(ARIMA_prediction_df)
+    st.write(len(ARIMA_prediction_df))
+
     rangeIndex = pd.RangeIndex(start=len(stock_train), stop=len(stock), step=1)
     ARIMA_prediction_df = ARIMA_prediction_df.set_index(rangeIndex)
     
     arima_df = pd.DataFrame(stock.close)
     arima_df['yhat'] = ARIMA_prediction_df
     st.line_chart(arima_df, use_container_width=True)
-
-    st.write(len(arima_df))
-    st.write(len(ARIMA_prediction_df))
 
 
     mae_test, mae = st.columns(2)
@@ -298,6 +300,53 @@ if ARIMA_Model :
     rmse_test, rmse = st.columns(2)
     rmse_test.text('Root Mean Absolute Error is:')
     rmse.write(calc_rmse(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values    ))
+
+
+if Prophet_Model:
+
+    st.markdown(body="## AutoRegression Integrated Moving Average Model :")
+
+    str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
+
+    str2 = option.split('(')[1].split(')')[0] + '_data.csv'
+
+    df_stock = pd.read_csv(str1+str2)
+
+    stock = df_stock.copy()
+
+    stock_train=stock[:math.ceil(.85*len(stock))]
+    stock_test=stock[math.ceil(.85*len(stock)):]
+
+    stock_prophet = stock_train.reset_index()[['date','close']].rename({'date':'ds','close':'y'},axis='columns')
+
+    prophet_model_instance = Prophet(interval_width=.95) #By Default confidence interval_width is 80,
+
+    prophet_model_instance.fit(stock_prophet)
+
+    future_dataframe = prophet_model_instance.make_future_dataframe(periods=len(stock_test))
+
+    forecasted_data = prophet_model_instance.predict(future_dataframe)[len(stock_train):]
+
+
+    forecasted_data_df = pd.DataFrame(forecasted_data.yhat)
+    rangeIndex = pd.RangeIndex(start=len(stock_train), stop=len(stock), step=1)
+    Prophet_prediction_df = forecasted_data_df.set_index(rangeIndex)
+
+    prophet_df = pd.DataFrame(stock.close)
+    prophet_df['yhat'] = Prophet_prediction_df.yhat
+    st.line_chart(prophet_df, use_container_width=True)
+
+    mae_test, mae = st.columns(2)
+    mae_test.text('Mean Absolute Error is:')
+    mae.write(calc_mae(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
+
+    mse_test, mse = st.columns(2)
+    mse_test.text('Mean Square Error is:')
+    mse.write(calc_mse(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
+
+    rmse_test, rmse = st.columns(2)
+    rmse_test.text('Root Mean Absolute Error is:')
+    rmse.write(calc_rmse(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values    ))
 
 
 
