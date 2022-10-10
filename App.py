@@ -2,7 +2,6 @@ from ctypes import alignment
 from fileinput import close
 from tkinter import CENTER
 from turtle import width
-import streamlit as st
 import numpy as np
 import pandas as pd
 from datetime import date, datetime
@@ -19,7 +18,7 @@ import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.api import VAR
 
-from fbprophet import Prophet
+# from fbprophet import Prophet
 
 import statsmodels.api as sms
 
@@ -65,6 +64,8 @@ from tensorflow.keras import layers
 import numpy as np
 import random
 import io
+
+import streamlit as st
 
 def calc_mae(y,y_hat):
     mae = np.abs(y-y_hat)
@@ -144,59 +145,6 @@ with st.sidebar:
     Fifth_Model, GluonTs_Model, Sixth_Model = st.columns(3)
 
     GluonTs_Model.checkbox("Amazon GluonTs")
-
-
-if Prophet_Model:
-    st.markdown(body='# Facebook Prophet Model')
-    str1 = 'C:\\Users\\91990\OneDrive\\Desktop\\PG Diploma AI ML Project Final\\Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
-
-    str2 = option.split('(')[1].split(')')[0] + '_data.csv'
-
-    # st.warning(str1+str2)
-
-    df_stock = pd.read_csv(str1+str2) # Apple from IT
-
-    stock = df_stock.copy() 
-
-    stock_train=stock[:math.ceil(.85*len(stock))]
-    stock_test=stock[math.ceil(.85*len(stock)):]
-
-    stock_prophet = stock_train.reset_index()[['date','close']].rename({'date':'ds','close':'y'},axis='columns')
-
-    prophet_model_instance = Prophet(interval_width=.95) #By Default confidence interval_width is 80,
-
-    prophet_model_instance.fit(stock_prophet)
-
-    future_dataframe = prophet_model_instance.make_future_dataframe(periods=len(stock_test))
-
-    forecasted_data = prophet_model_instance.predict(future_dataframe)
-
-    #st.dataframe(stock)
-    st.dataframe(forecasted_data)
-
-    #prophet_df = pd.concat([apple.close, forecast.set_index('ds')['yhat']], axis=1)
-
-    prophet_df = pd.DataFrame(stock.close)
-    prophet_df['yhat_full'] = forecasted_data.yhat
-    prophet_df['yhat'] = forecasted_data.yhat[-len(stock_test):]
-
-    #st.dataframe(prophet_df)
-
-    line_chart = st.line_chart(prophet_df)
-
-    mae_test, mae = st.columns(2)
-    mae_test.text('Mean Absolute Error is:')
-    mae.write(calc_mae(stock.close[-len(stock_test):], forecasted_data.yhat[-len(stock_test):]))
-
-    mse_test, mse = st.columns(2)
-    mse_test.text('Mean Square Error is:')
-    mse.write(calc_mse(stock.close[-len(stock_test):], forecasted_data.yhat[-len(stock_test):]))
-
-    rmse_test, rmse = st.columns(2)
-    rmse_test.text('Root Mean Absolute Error is:')
-    rmse.write(calc_rmse(stock.close[-len(stock_test):], forecasted_data.yhat[-len(stock_test):]))
-
-
 
 
 if VAR_Model:
