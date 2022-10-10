@@ -304,7 +304,7 @@ if ARIMA_Model :
 
 if Prophet_Model:
 
-    st.markdown(body="## AutoRegression Integrated Moving Average Model :")
+    st.markdown(body="## Facebook Prophet :")
 
     str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
 
