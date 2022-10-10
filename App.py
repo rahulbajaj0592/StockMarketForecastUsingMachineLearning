@@ -1,71 +1,17 @@
-from ctypes import alignment
-from fileinput import close
-from tkinter import CENTER
-from turtle import width
+import streamlit as st
 import numpy as np
 import pandas as pd
-from datetime import date, datetime
-import plotly.express as px
-
-import plotly.express as px
-import pmdarima as pm
-from pmdarima.model_selection import train_test_split
-import numpy as np
-import matplotlib.pyplot as plt
-
-
-
-from statsmodels.tsa.stattools import adfuller
-from statsmodels.tsa.api import VAR
-
-# from fbprophet import Prophet
-
-import statsmodels.api as sms
-
 import math
-
-from statsmodels.tsa.stattools import adfuller
-
-from keras.preprocessing.sequence import TimeseriesGenerator
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+import pmdarima as pm
 import tensorflow as tf
-from tensorflow.keras.layers import LeakyReLU, LSTM, Dropout, Dense
-from keras.models import Sequential
-from keras.layers import LSTM, Dense
 
+from pmdarima.model_selection import train_test_split
 from keras.preprocessing.sequence import TimeseriesGenerator
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-import tensorflow as tf
-from tensorflow.keras.layers import LeakyReLU, LSTM, Dropout, Dense
-from keras.models import Sequential
-from keras.layers import LSTM, Dense
-
-from keras.preprocessing.sequence import TimeseriesGenerator
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-import tensorflow as tf
-from tensorflow.keras.layers import LeakyReLU, LSTM, Dropout, Dense
-from keras.models import Sequential
-from keras.layers import LSTM, Dense
-
-from keras.models import Sequential
-from keras.layers import LSTM, Dense
-from keras.preprocessing.sequence import TimeseriesGenerator
-
-from keras.preprocessing.sequence import TimeseriesGenerator
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-import tensorflow as tf
-from tensorflow.keras.layers import LeakyReLU, LSTM, Dropout, Dense
-from keras.models import Sequential
-from keras.layers import LSTM, Dense
-
 from tensorflow import keras
 from tensorflow.keras import layers
 
-import numpy as np
-import random
-import io
-
-import streamlit as st
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.api import VAR
 
 def calc_mae(y,y_hat):
     mae = np.abs(y-y_hat)
@@ -337,18 +283,21 @@ if ARIMA_Model :
     arima_df['yhat'] = ARIMA_prediction_df
     st.line_chart(arima_df, use_container_width=True)
 
+    st.write(len(arima_df))
+    st.write(len(ARIMA_prediction_df))
+
 
     mae_test, mae = st.columns(2)
     mae_test.text('Mean Absolute Error is:')
-    mae.write(calc_mae(stock.close[-len(x_train):].values, LSTM_prediction))
+    mae.write(calc_mae(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values))
 
     mse_test, mse = st.columns(2)
     mse_test.text('Mean Square Error is:')
-    mse.write(calc_mse(stock.close[-len(x_train):].values, LSTM_prediction))
+    mse.write(calc_mse(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values))
 
     rmse_test, rmse = st.columns(2)
     rmse_test.text('Root Mean Absolute Error is:')
-    rmse.write(calc_rmse(stock.close[-len(x_train):].values, LSTM_prediction))
+    rmse.write(calc_rmse(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values    ))
 
 
 
