@@ -19,6 +19,8 @@ from prophet import Prophet
 from datetime import date, datetime
 from datetime import timedelta
 
+from statsmodels.tsa.statespace.varmax import VARMAX
+
 def calc_mae(y,y_hat):
     mae = np.abs(y-y_hat)
     return mae.mean()
@@ -70,7 +72,7 @@ with st.sidebar:
 
     start = st.sidebar.date_input("Training Date Start :",
                                     min_value= datetime.strptime(df_stock.date[0], '%Y-%m-%d'),
-                                    max_value= datetime.strptime(df_stock.date[len(df_stock)-529], '%Y-%m-%d')+ timedelta(days=-365),
+                                    max_value= datetime.strptime(df_stock.date[len(df_stock)-529], '%Y-%m-%d'),
                                     value = datetime.strptime(df_stock.date[0], '%Y-%m-%d'))
     end = st.sidebar.date_input("Training Date End :",
                                     min_value= start + timedelta(days=365),
@@ -122,24 +124,18 @@ with st.sidebar:
 
 if VAR_Model:
 
-    st.markdown(body='# Vector Autogressor Model VAR')
-    str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
-
-    str2 = option.split('(')[1].split(')')[0] + '_data.csv'
-
-    # st.warning(str1+str2)
-
-    df_stock = pd.read_csv(str1+str2)
-
     stock = df_stock.copy() 
+
+    stock_train = df_stock_train.copy()
+    stock_test = df_stock_test.copy()
 
     data_is_non_stationary = True
 
-    differenced_stock_open = stock.open
-    differenced_stock_close = stock.close
-    differenced_stock_low = stock.low
-    differenced_stock_high = stock.high
-    differenced_stock_vol = stock.volume
+    differenced_stock_open = stock_train.open
+    differenced_stock_close = stock_train.close
+    differenced_stock_low = stock_train.low
+    differenced_stock_high = stock_train.high
+    differenced_stock_vol = stock_train.volume
 
     order_of_differencing = 0
     while(data_is_non_stationary):
@@ -160,35 +156,45 @@ if VAR_Model:
             differenced_stock_vol = stock.volume.diff().dropna()
     
     var_stock = pd.concat([differenced_stock_open, differenced_stock_close, differenced_stock_low, differenced_stock_high], axis=1)
-        
-    stock_train = var_stock[:math.ceil(.85*len(var_stock))]
-    stock_test = var_stock[math.ceil(.85*len(var_stock)):]
 
-    var_model_instance = VAR(stock_train)
+    var_model_instance = VAR(var_stock)
 
     order_for_var = var_model_instance.select_order(40).bic
 
     var_result = var_model_instance.fit(order_for_var)
 
-    var_result.summary()
+    print(var_result.summary())
 
     lag = var_result.k_ar
 
-    result_forecast = var_result.forecast(stock_test.values[-lag:], steps=len(stock_test))
 
-    var_output = pd.concat([pd.DataFrame(stock_train.close.values), pd.DataFrame((result_forecast[:,0]))])
-
-    actual_output = integrate(pd.DataFrame(stock.close.values),var_output).dropna()
-
-    actual_output = actual_output.reset_index(drop=True)
-    actual_pred = actual_output.reset_index(drop=True)[-len(stock_test):]
-
+    stock_train = stock_train.drop(columns=['Name', 'volume'], axis=1)
+    stock_test = stock_test.drop(columns=['Name', 'volume'], axis=1)
     
-    var_df = pd.DataFrame(stock.close)
-    var_df['yhat'] = actual_pred
+    var_model_instance = VARMAX(stock_train, order=(lag,0),enforce_stationarity= True)
 
-    st.line_chart(var_df)
-    st.dataframe(var_df)
+    fitted_model = var_model_instance.fit(disp=True)
+
+    result_forecast2 = fitted_model.get_prediction(start=len(stock_train)+1 , end=len(stock_train) + len(stock_test))
+
+    VAR_prediction = result_forecast2.predicted_mean
+
+    dateIndex = pd.DatetimeIndex(stock_test.index[:len(VAR_prediction)])
+
+    VAR_prediction_df = (pd.DataFrame(VAR_prediction)).set_index(dateIndex)
+
+
+    if len(stock) > (len(stock_train) + len(stock_test)):
+        var_df = pd.DataFrame(stock.close)
+        var_df['yhat'] = VAR_prediction_df.close
+        st.line_chart(var_df, use_container_width=True)
+        st.dataframe(var_df)
+
+    else:
+        var_df = pd.DataFrame(stock_train.close).append(pd.DataFrame(stock_test.close))
+        var_df['yhat'] = VAR_prediction_df.close
+        st.line_chart(var_df, use_container_width=True)
+        st.dataframe(var_df)
     
     mae_test, mae = st.columns(2)
     mae_test.text('Mean Absolute Error is:')
@@ -212,8 +218,8 @@ if LSTM_Model :
 
         stock_lstm = stock[['close']]
 
-        features = stock_train[['close']] 
-        target = stock_train['close'].tolist() 
+        features = stock[['close']] 
+        target = stock['close'].tolist() 
   
 
         x_train, x_test, y_train, y_test = train_test_split(features,target, test_size=len(stock_test))
@@ -222,7 +228,7 @@ if LSTM_Model :
         feature_count = 1
 
         train_generator = TimeseriesGenerator(x_train, y_train, length=window_length, sampling_rate=1, batch_size=1, stride = 1)
-        test_generator = TimeseriesGenerator(x_test, y_test, length=window_length, sampling_rate=1, batch_size=1, stride = 1)
+        #test_generator = TimeseriesGenerator(x_test, y_test, length=window_length, sampling_rate=1, batch_size=1, stride = 1)
 
         LSTM_Model_Instance = keras.Sequential([
             keras.Input(shape=(window_length, feature_count)),
@@ -232,19 +238,38 @@ if LSTM_Model :
             layers.Dense(1)])
 
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                         patience = 2,
+                                                         patience = 4,
                                                          mode=min)
         LSTM_Model_Instance.compile(loss=tf.losses.MeanSquaredError(),
              optimizer = tf.optimizers.Adam(),
              metrics = [tf.metrics.MeanAbsoluteError()])
        
         history = LSTM_Model_Instance.fit_generator(train_generator, epochs=50,
-                             validation_data=test_generator,
+                             #validation_data=test_generator,
                              shuffle=False, callbacks=[early_stopping])
         
-        LSTM_Model_Instance.evaluate_generator(test_generator, verbose=0)
+        #LSTM_Model_Instance.evaluate_generator(test_generator, verbose=0)
 
-        LSTM_prediction = LSTM_Model_Instance.predict_generator(test_generator)
+        #LSTM_prediction = LSTM_Model_Instance.predict_generator(test_generator)
+
+        
+        LSTM_prediction = []
+
+        first_eval_batch = stock_train[-window_length:].close.to_numpy()
+        current_batch = first_eval_batch.reshape((1, window_length, feature_count))
+
+        for i in range(len(stock_test)):
+    
+            # get the prediction value for the first batch
+            current_pred = LSTM_Model_Instance.predict(current_batch)[0]
+    
+            # append the prediction into the array
+            LSTM_prediction.append(current_pred) 
+    
+            # use the prediction to update the batch and remove the first value
+            current_batch = np.append(current_batch[:,1:,:],[[current_pred]],axis=1)    
+
+
 
         dateIndex = pd.DatetimeIndex(stock_test.index[:len(LSTM_prediction)])
 
