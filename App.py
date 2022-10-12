@@ -1,3 +1,4 @@
+from operator import concat
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -14,6 +15,9 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.api import VAR
 
 from prophet import Prophet
+
+from datetime import date, datetime
+from datetime import timedelta
 
 def calc_mae(y,y_hat):
     mae = np.abs(y-y_hat)
@@ -54,25 +58,46 @@ with st.sidebar:
     
     # st.warning(option)
 
+    str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
 
-st.sidebar.text("Training Date Range :")
-start = st.sidebar.date_input("Training Date Start :")
-end = st.sidebar.date_input("Training Date End :")
+    str2 = option.split('(')[1].split(')')[0] + '_data.csv'
 
-# st.warning(start)
-# st.warning(end)
-    
+    # st.warning(str1+str2)
 
-with st.sidebar:
-    period = st.slider(
-    "Forecast Period",
-    
-    min_value= 1,
-    
-    value=164,
-    
-    max_value= 365,
-    )
+    df_stock = pd.read_csv(str1+str2)
+
+    st.sidebar.text("Training Date Range :")
+
+    start = st.sidebar.date_input("Training Date Start :",
+                                    min_value= datetime.strptime(df_stock.date[0], '%Y-%m-%d'),
+                                    max_value= datetime.strptime(df_stock.date[len(df_stock)-529], '%Y-%m-%d')+ timedelta(days=-365),
+                                    value = datetime.strptime(df_stock.date[0], '%Y-%m-%d'))
+    end = st.sidebar.date_input("Training Date End :",
+                                    min_value= start + timedelta(days=365),
+                                    max_value= datetime.strptime(df_stock.date[len(df_stock)-164], '%Y-%m-%d'),
+                                    value = datetime.strptime(df_stock.date[len(df_stock)-164], '%Y-%m-%d'))
+
+    period = st.slider("Forecast Period",
+                        min_value= 1,
+                        value=164,
+                        max_value= 365)
+
+df_stock = df_stock.set_index('date', drop=True)
+df_stock.index = pd.to_datetime(df_stock.index)
+df_stock_train = df_stock[start:end]
+
+if len(df_stock[end:]) >= period:
+
+    df_stock_test = (df_stock[end:])[:period]
+
+else :
+    initial_df_stock_test = pd.DataFrame(df_stock[end+ timedelta(days=1):])
+
+    extra_index = pd.date_range(start = initial_df_stock_test.index[len(initial_df_stock_test)-1] + timedelta(days=1), periods=(period-len(initial_df_stock_test)))
+    extra_df_stock_test = pd.DataFrame(data=None, index = extra_index)
+
+    df_stock_test = initial_df_stock_test.append(extra_df_stock_test)
+
 
 # st.warning(period)
 
@@ -98,7 +123,7 @@ with st.sidebar:
 if VAR_Model:
 
     st.markdown(body='# Vector Autogressor Model VAR')
-    str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
+    str1 = 'C:\\Users\\91990\OneDrive\\Desktop\\PG Diploma AI ML Project Final\\Dataset S&P\\individual_stocks_5yr\\individual_stocks_5yr\\'
 
     str2 = option.split('(')[1].split(')')[0] + '_data.csv'
 
@@ -158,22 +183,12 @@ if VAR_Model:
     actual_output = actual_output.reset_index(drop=True)
     actual_pred = actual_output.reset_index(drop=True)[-len(stock_test):]
 
-    st.write('VAR Actual Dataframe')
-    st.write(pd.DataFrame(stock.close))
-    st.write(type(pd.DataFrame(stock.close)))
-    st.write(len(pd.DataFrame(stock.close)))
-
-    st.write('VAR Predicted Dataframe')
-    st.write(actual_pred)
-    st.write(type(actual_pred))
-    st.write(len(actual_pred))
     
     var_df = pd.DataFrame(stock.close)
-    st.write(type(var_df))
-    st.write(type(actual_pred))
     var_df['yhat'] = actual_pred
 
     st.line_chart(var_df)
+    st.dataframe(var_df)
     
     mae_test, mae = st.columns(2)
     mae_test.text('Mean Absolute Error is:')
@@ -190,22 +205,18 @@ if VAR_Model:
 if LSTM_Model :
         st.markdown(body="# Long Short Term Memory Model:")
 
-        str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
-
-        str2 = option.split('(')[1].split(')')[0] + '_data.csv'
-
-        # st.warning(str1+str2)
-
-        df_stock = pd.read_csv(str1+str2)
-
         stock = df_stock.copy()
+
+        stock_train = df_stock_train.copy()
+        stock_test = df_stock_test.copy()
 
         stock_lstm = stock[['close']]
 
-        features = stock[['close']] 
-        target = stock['close'].tolist() 
+        features = stock_train[['close']] 
+        target = stock_train['close'].tolist() 
+  
 
-        x_train, x_test, y_train, y_test = train_test_split(features,target, test_size=165)
+        x_train, x_test, y_train, y_test = train_test_split(features,target, test_size=len(stock_test))
 
         window_length = 1
         feature_count = 1
@@ -235,13 +246,21 @@ if LSTM_Model :
 
         LSTM_prediction = LSTM_Model_Instance.predict_generator(test_generator)
 
-        LSTM_prediction_df = pd.DataFrame(LSTM_prediction)
+        dateIndex = pd.DatetimeIndex(stock_test.index[:len(LSTM_prediction)])
 
-        rangeIndex = pd.RangeIndex(start=len(x_train), stop=len(stock)-1, step=1)
-        LSTM_prediction_df = LSTM_prediction_df.set_index(rangeIndex)
-        lstm_df = pd.DataFrame(stock_lstm)
-        lstm_df['yhat'] = LSTM_prediction_df
-        st.line_chart(lstm_df, use_container_width=True)
+        LSTM_prediction_df = (pd.DataFrame(LSTM_prediction)).set_index(dateIndex)
+
+        if len(stock) > (len(stock_train) + len(stock_test)):
+            lstm_df = pd.DataFrame(stock_lstm)
+            lstm_df['yhat'] = LSTM_prediction_df
+            st.line_chart(lstm_df, use_container_width=True)
+            st.dataframe(lstm_df)
+
+        else:
+            lstm_df = pd.DataFrame(stock_train.close).append(pd.DataFrame(stock_test.close))
+            lstm_df['yhat'] = LSTM_prediction_df
+            st.line_chart(lstm_df, use_container_width=True)
+            st.dataframe(lstm_df)
 
         mae_test, mae = st.columns(2)
         mae_test.text('Mean Absolute Error is:')
@@ -258,35 +277,34 @@ if LSTM_Model :
 if ARIMA_Model :
     st.markdown(body="## AutoRegression Integrated Moving Average Model :")
 
-    str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
-
-    str2 = option.split('(')[1].split(')')[0] + '_data.csv'
-
-    # st.warning(str1+str2)
-
-    df_stock = pd.read_csv(str1+str2)
-
     stock = df_stock.copy()
 
-    stock_train = stock[:math.ceil(.85*len(stock))]
-    stock_test = stock[math.ceil(.85*len(stock)):]
+    stock_train = df_stock_train.copy().close
+    stock_test = df_stock_test.copy().close
 
-    Arima_Model_Instance = pm.auto_arima(stock['close'][:len(stock_train)], start_p = 0,  start_q=0, max_order=4, test='adf',
+    Arima_Model_Instance = pm.auto_arima(stock_train, start_p = 0,  start_q=0, max_order=4, test='adf',
                             error_action='ignore', suppress_warning = True, stepwise = True, trace = True)
 
     prediction_Arima = Arima_Model_Instance.predict(len(stock_test), return_conf_int=True)
 
     ARIMA_prediction_df = pd.DataFrame(prediction_Arima[0])
-
-    st.write(ARIMA_prediction_df)
-    st.write(len(ARIMA_prediction_df))
-
-    rangeIndex = pd.RangeIndex(start=len(stock_train), stop=len(stock), step=1)
-    ARIMA_prediction_df = ARIMA_prediction_df.set_index(rangeIndex)
     
-    arima_df = pd.DataFrame(stock.close)
-    arima_df['yhat'] = ARIMA_prediction_df
-    st.line_chart(arima_df, use_container_width=True)
+    dateIndex = pd.DatetimeIndex(stock_test.index)
+
+    ARIMA_prediction_df = ARIMA_prediction_df.set_index(dateIndex)
+
+    if len(stock) > (len(stock_train) + len(stock_test)):
+        arima_df = pd.DataFrame(stock.close)
+        arima_df['yhat'] = ARIMA_prediction_df
+        st.line_chart(arima_df, use_container_width=True)
+        st.dataframe(arima_df)
+
+    else:
+        arima_df = pd.DataFrame(stock_train).append(pd.DataFrame(stock_test))
+        arima_df['yhat'] = ARIMA_prediction_df
+        st.line_chart(arima_df, use_container_width=True)
+        st.dataframe(arima_df)
+
 
 
     mae_test, mae = st.columns(2)
@@ -306,16 +324,10 @@ if Prophet_Model:
 
     st.markdown(body="## Facebook Prophet :")
 
-    str1 = "Dataset S&P/individual_stocks_5yr/individual_stocks_5yr/"
-
-    str2 = option.split('(')[1].split(')')[0] + '_data.csv'
-
-    df_stock = pd.read_csv(str1+str2)
-
     stock = df_stock.copy()
 
-    stock_train=stock[:math.ceil(.85*len(stock))]
-    stock_test=stock[math.ceil(.85*len(stock)):]
+    stock_train = df_stock_train.copy().close
+    stock_test = df_stock_test.copy().close
 
     stock_prophet = stock_train.reset_index()[['date','close']].rename({'date':'ds','close':'y'},axis='columns')
 
@@ -327,14 +339,23 @@ if Prophet_Model:
 
     forecasted_data = prophet_model_instance.predict(future_dataframe)[len(stock_train):]
 
-
     forecasted_data_df = pd.DataFrame(forecasted_data.yhat)
-    rangeIndex = pd.RangeIndex(start=len(stock_train), stop=len(stock), step=1)
-    Prophet_prediction_df = forecasted_data_df.set_index(rangeIndex)
+    dateIndex = pd.DatetimeIndex(stock_test.index)
+    Prophet_prediction_df = forecasted_data_df.set_index(dateIndex)
 
-    prophet_df = pd.DataFrame(stock.close)
-    prophet_df['yhat'] = Prophet_prediction_df.yhat
-    st.line_chart(prophet_df, use_container_width=True)
+    if len(stock) > (len(stock_train) + len(stock_test)):
+        prophet_df = pd.DataFrame(stock.close)
+        prophet_df['yhat'] = Prophet_prediction_df.yhat
+        st.line_chart(prophet_df, use_container_width=True)
+        st.dataframe(prophet_df)
+
+    else:
+        prophet_df = pd.DataFrame(stock_train).append(pd.DataFrame(stock_test))
+        prophet_df['yhat'] = Prophet_prediction_df
+        st.line_chart(prophet_df, use_container_width=True)
+        st.dataframe(prophet_df)
+
+    
 
     mae_test, mae = st.columns(2)
     mae_test.text('Mean Absolute Error is:')
@@ -346,7 +367,7 @@ if Prophet_Model:
 
     rmse_test, rmse = st.columns(2)
     rmse_test.text('Root Mean Absolute Error is:')
-    rmse.write(calc_rmse(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values    ))
+    rmse.write(calc_rmse(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
 
 
 
