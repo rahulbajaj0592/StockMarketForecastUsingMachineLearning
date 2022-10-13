@@ -53,6 +53,15 @@ def dickey_fuller_test(series):
         print("Weak Evidence against the null hypothesis, accepting the null hypothesis, hence data is non-stationary")
         return True
 
+def display_metrices(mae, mse, rmse):
+    data = [['Mean Square', mae], ['Mean Square', mse], ['Root Mean Square Error', rmse]]
+  
+    df_metrices = pd.DataFrame(data, columns=['Metrices', 'Value'])
+
+    st.dataframe(df_metrices)
+  
+    
+
 with st.sidebar:
     option = st.selectbox(
     'Select the stock need to be Forecasted',
@@ -195,18 +204,29 @@ if VAR_Model:
         var_df['yhat'] = VAR_prediction_df.close
         st.line_chart(var_df, use_container_width=True)
         st.dataframe(var_df)
-    
-    mae_test, mae = st.columns(2)
-    mae_test.text('Mean Absolute Error is:')
-    mae.write(calc_mae(stock.close[-len(actual_pred):].values, actual_pred.values))
 
-    mse_test, mse = st.columns(2)
-    mse_test.text('Mean Square Error is:')
-    mse.write(calc_mse(stock.close[-len(actual_pred):].values, actual_pred.values))
+    #mae_test, mae = st.columns(2)
+    #mae_test.text('Mean Absolute Error is:')
+    #mae.write(calc_mae(stock.close[-len(var_df):].values, VAR_prediction_df.close.values))
 
-    rmse_test, rmse = st.columns(2)
-    rmse_test.text('Root Mean Absolute Error is:')
-    rmse.write(calc_rmse(stock.close[-len(actual_pred):].values, actual_pred.values))
+    #mse_test, mse = st.columns(2)
+    #mse_test.text('Mean Square Error is:')
+    #mse.write(calc_mse(stock.close[-len(var_df):].values, VAR_prediction_df.close.values))
+
+    #rmse_test, rmse = st.columns(2)
+    #rmse_test.text('Root Mean Absolute Error is:')
+    #rmse.write(calc_rmse(stock.close[-len(var_df):].values, VAR_prediction_df.close.values))
+
+    st.write('\nModel Metrices are as follows:')
+
+    test_data_last_index = stock_test.index[len(stock_test)-1]
+    test_data_length_available = len(stock.close[stock_test.index[0]:test_data_last_index])
+
+    mae = calc_mae(stock.close[stock_test.index[0]:test_data_last_index].values, VAR_prediction_df.close[:test_data_length_available].values)
+    mse = calc_mse(stock.close[stock_test.index[0]:test_data_last_index].values, VAR_prediction_df.close[:test_data_length_available].values)
+    rmse = calc_rmse(stock.close[stock_test.index[0]:test_data_last_index].values, VAR_prediction_df[:test_data_length_available].close.values)
+
+    display_metrices(mae, mse, rmse)
     
 if LSTM_Model :
         st.markdown(body="# Long Short Term Memory Model:")
@@ -271,7 +291,8 @@ if LSTM_Model :
 
 
 
-        dateIndex = pd.DatetimeIndex(stock_test.index[:len(LSTM_prediction)])
+        #dateIndex = pd.DatetimeIndex(stock_test.index[:len(LSTM_prediction)])
+        dateIndex = pd.DatetimeIndex(stock_test.index)
 
         LSTM_prediction_df = (pd.DataFrame(LSTM_prediction)).set_index(dateIndex)
 
@@ -287,17 +308,28 @@ if LSTM_Model :
             st.line_chart(lstm_df, use_container_width=True)
             st.dataframe(lstm_df)
 
-        mae_test, mae = st.columns(2)
-        mae_test.text('Mean Absolute Error is:')
-        mae.write(calc_mae(stock.close[-len(stock_train):].values, LSTM_prediction))
+        #mae_test, mae = st.columns(2)
+        #mae_test.text('Mean Absolute Error is:')
+        #mae.write(calc_mae(stock.close[-len(stock_train):].values, LSTM_prediction))
 
-        mse_test, mse = st.columns(2)
-        mse_test.text('Mean Square Error is:')
-        mse.write(calc_mse(stock.close[-len(stock_train):].values, LSTM_prediction))
+        #mse_test, mse = st.columns(2)
+        #mse_test.text('Mean Square Error is:')
+        #mse.write(calc_mse(stock.close[-len(stock_train):].values, LSTM_prediction))
 
-        rmse_test, rmse = st.columns(2)
-        rmse_test.text('Root Mean Absolute Error is:')
-        rmse.write(calc_rmse(stock.close[-len(stock_train):].values, LSTM_prediction))
+        #rmse_test, rmse = st.columns(2)
+        #rmse_test.text('Root Mean Absolute Error is:')
+        #rmse.write(calc_rmse(stock.close[-len(stock_train):].values, LSTM_prediction))
+
+        st.write('\nModel Metrices are as follows:')
+
+        test_data_last_index = stock_test.index[len(stock_test)-1]
+        test_data_length_available = len(stock.close[stock_test.index[0]:test_data_last_index])
+
+        mae = calc_mae(stock.close[stock_test.index[0]:test_data_last_index].values, LSTM_prediction_df[:test_data_length_available].values)
+        mse = calc_mse(stock.close[stock_test.index[0]:test_data_last_index].values, LSTM_prediction_df[:test_data_length_available].values)
+        rmse = calc_rmse(stock.close[stock_test.index[0]:test_data_last_index].values, LSTM_prediction_df[:test_data_length_available].values)
+
+        display_metrices(mae, mse, rmse)
 
 if ARIMA_Model :
     st.markdown(body="## AutoRegression Integrated Moving Average Model :")
@@ -332,17 +364,27 @@ if ARIMA_Model :
 
 
 
-    mae_test, mae = st.columns(2)
-    mae_test.text('Mean Absolute Error is:')
-    mae.write(calc_mae(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values))
+    #mae_test, mae = st.columns(2)
+    #mae_test.text('Mean Absolute Error is:')
+    #mae.write(calc_mae(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values))
 
-    mse_test, mse = st.columns(2)
-    mse_test.text('Mean Square Error is:')
-    mse.write(calc_mse(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values))
+    #mse_test, mse = st.columns(2)
+    #mse_test.text('Mean Square Error is:')
+    #mse.write(calc_mse(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values))
 
-    rmse_test, rmse = st.columns(2)
-    rmse_test.text('Root Mean Absolute Error is:')
-    rmse.write(calc_rmse(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values    ))
+    #rmse_test, rmse = st.columns(2)
+    #rmse_test.text('Root Mean Absolute Error is:')
+    #rmse.write(calc_rmse(stock.close[-len(arima_df):].values, ARIMA_prediction_df.values    ))
+
+    st.write('\nModel Metrices are as follows:')
+    test_data_length_available = len(stock.close[stock_test.index[0]:])
+    test_data_last_index = stock_test.index[len(stock_test)-1]
+
+    mae = calc_mae(stock.close[stock_test.index[0]:test_data_last_index].values, ARIMA_prediction_df[:test_data_length_available].values)
+    mse = calc_mse(stock.close[stock_test.index[0]:test_data_last_index].values, ARIMA_prediction_df[:test_data_length_available].values)
+    rmse = calc_rmse(stock.close[stock_test.index[0]:test_data_last_index].values, ARIMA_prediction_df[:test_data_length_available].values)
+
+    display_metrices(mae, mse, rmse)
 
 
 if Prophet_Model:
@@ -382,17 +424,26 @@ if Prophet_Model:
 
     
 
-    mae_test, mae = st.columns(2)
-    mae_test.text('Mean Absolute Error is:')
-    mae.write(calc_mae(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
+    #mae_test, mae = st.columns(2)
+    #mae_test.text('Mean Absolute Error is:')
+    #mae.write(calc_mae(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
 
-    mse_test, mse = st.columns(2)
-    mse_test.text('Mean Square Error is:')
-    mse.write(calc_mse(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
+    #mse_test, mse = st.columns(2)
+    #mse_test.text('Mean Square Error is:')
+    #mse.write(calc_mse(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
 
-    rmse_test, rmse = st.columns(2)
-    rmse_test.text('Root Mean Absolute Error is:')
-    rmse.write(calc_rmse(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
+    #rmse_test, rmse = st.columns(2)
+    #rmse_test.text('Root Mean Absolute Error is:')
+    #rmse.write(calc_rmse(stock.close[-len(prophet_df):].values, Prophet_prediction_df.values))
+    st.write('\nModel Metrices are as follows:')
+    test_data_length_available = len(stock.close[stock_test.index[0]:])
+    test_data_last_index = stock_test.index[len(stock_test)-1]
+
+    mae = calc_mae(stock.close[stock_test.index[0]:test_data_last_index].values, Prophet_prediction_df[:test_data_length_available].values)
+    mse = calc_mse(stock.close[stock_test.index[0]:test_data_last_index].values, Prophet_prediction_df[:test_data_length_available].values)
+    rmse = calc_rmse(stock.close[stock_test.index[0]:test_data_last_index].values, Prophet_prediction_df[:test_data_length_available].values)
+
+    display_metrices(mae, mse, rmse)
 
 
 
