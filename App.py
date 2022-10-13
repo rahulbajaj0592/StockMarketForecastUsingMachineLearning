@@ -218,17 +218,17 @@ if LSTM_Model :
 
         stock_lstm = stock[['close']]
 
-        features = stock[['close']] 
-        target = stock['close'].tolist() 
+        features = stock_train[['close']] 
+        target = stock_train['close'].tolist() 
   
 
-        x_train, x_test, y_train, y_test = train_test_split(features,target, test_size=len(stock_test))
+        #x_train, x_test, y_train, y_test = train_test_split(features,target, test_size=len(stock_test))
 
         window_length = 3
         feature_count = 1
 
-        train_generator = TimeseriesGenerator(x_train, y_train, length=window_length, sampling_rate=1, batch_size=1, stride = 1)
-        test_generator = TimeseriesGenerator(x_test, y_test, length=window_length, sampling_rate=1, batch_size=1, stride = 1)
+        train_generator = TimeseriesGenerator(features, target, length=window_length, sampling_rate=1, batch_size=1, stride = 1)
+        #test_generator = TimeseriesGenerator(x_test, y_test, length=window_length, sampling_rate=1, batch_size=1, stride = 1)
 
         LSTM_Model_Instance = keras.Sequential([
             keras.Input(shape=(window_length, feature_count)),
@@ -245,10 +245,10 @@ if LSTM_Model :
              metrics = [tf.metrics.MeanAbsoluteError()])
        
         history = LSTM_Model_Instance.fit_generator(train_generator, epochs=50,
-                             validation_data=test_generator,
+                             #validation_data=test_generator,
                              shuffle=False, callbacks=[early_stopping])
         
-        LSTM_Model_Instance.evaluate_generator(test_generator, verbose=0)
+        #LSTM_Model_Instance.evaluate_generator(test_generator, verbose=0)
 
         #LSTM_prediction = LSTM_Model_Instance.predict_generator(test_generator)
 
@@ -289,15 +289,15 @@ if LSTM_Model :
 
         mae_test, mae = st.columns(2)
         mae_test.text('Mean Absolute Error is:')
-        mae.write(calc_mae(stock.close[-len(x_train):].values, LSTM_prediction))
+        mae.write(calc_mae(stock.close[-len(stock_train):].values, LSTM_prediction))
 
         mse_test, mse = st.columns(2)
         mse_test.text('Mean Square Error is:')
-        mse.write(calc_mse(stock.close[-len(x_train):].values, LSTM_prediction))
+        mse.write(calc_mse(stock.close[-len(stock_train):].values, LSTM_prediction))
 
         rmse_test, rmse = st.columns(2)
         rmse_test.text('Root Mean Absolute Error is:')
-        rmse.write(calc_rmse(stock.close[-len(x_train):].values, LSTM_prediction))
+        rmse.write(calc_rmse(stock.close[-len(stock_train):].values, LSTM_prediction))
 
 if ARIMA_Model :
     st.markdown(body="## AutoRegression Integrated Moving Average Model :")
